@@ -1,4 +1,5 @@
 com\rasp\hooks\JNDIHook.class
+com\rasp\hooks\SerialHook.class
 com\rasp\hooks\SpELHook.class
 com\rasp\hooks\FileHook.class
 com\rasp\hooks\RceHook.class
