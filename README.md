@@ -24,7 +24,6 @@ This project is a Java-developed Runtime Application Self-Protection (RASP) solu
 - Deserialization attacks
 - SPEL expression injection
 - SQL injection
-- Server-Side Request Forgery (SSRF)
 
 ## Advantages of RASP
 
