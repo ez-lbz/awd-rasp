@@ -1,5 +1,8 @@
 package com.rasp.hooks;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtBehavior;
@@ -7,16 +10,50 @@ import javassist.CtClass;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.ProtectionDomain;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class RceHook implements ClassFileTransformer {
+    private static final Set<String> ALLOWED_COMMANDS = new HashSet<>(Arrays.asList(
+            "ping 127.0.0.1"
+    ));
+    private static boolean doRCEHook = false;
+
+    static {
+        try {
+            String json = new String(Files.readAllBytes(Paths.get("hook.json")), StandardCharsets.UTF_8);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+
+            if (root.has("RCEHook") && root.get("RCEHook").isJsonObject()) {
+                JsonObject RCEHook = root.getAsJsonObject("RCEHook");
+
+                doRCEHook = RCEHook.has("doRCEHook") && RCEHook.get("doRCEHook").getAsBoolean();
+                if (doRCEHook) {
+                    if (RCEHook.has("safeCommands")) {
+                        ALLOWED_COMMANDS.clear();
+                        for (JsonElement path : RCEHook.getAsJsonArray("safeCommands")) {
+                            ALLOWED_COMMANDS.add(path.getAsString());
+                        }
+                        System.out.println("Danger Cmds loaded: " + ALLOWED_COMMANDS);
+                    }
+                }
+            } else {
+                System.out.println("No RCEHook configuration found in hook.json");
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error initializing RCEHook: " + e.getMessage());
+        }
+    }
+
 
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
-        if (className.endsWith("ProcessImpl")||className.endsWith("UnixProcess")) {
+        if (doRCEHook && className.endsWith("ProcessImpl")||className.endsWith("UnixProcess")) {
             try {
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();
@@ -55,9 +92,7 @@ public class RceHook implements ClassFileTransformer {
     }
 
     public static void checkCmd(String cmd) throws Exception {
-        List<String> whiteList = new ArrayList<String>();
-        whiteList.add("ping 127.0.0.1");
-        if (!whiteList.contains(cmd)){
+        if (!ALLOWED_COMMANDS.contains(cmd)){
             throw new RuntimeException("RCE Attack -- RASP");
         }
     }

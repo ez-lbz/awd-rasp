@@ -1,5 +1,8 @@
 package com.rasp.hooks;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
@@ -7,6 +10,9 @@ import javassist.CtMethod;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -80,13 +86,50 @@ public class SerialHook implements ClassFileTransformer {
             "sun.print.UnixPrintService"
     ));
 
+    private static boolean doSerialHook = false;
+    private static String serialHookClassName = "";
+
+    static {
+        try {
+            String json = new String(Files.readAllBytes(Paths.get("hook.json")), StandardCharsets.UTF_8);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+
+            if (root.has("SerialHook") && root.get("SerialHook").isJsonObject()) {
+                JsonObject SerialHook = root.getAsJsonObject("SerialHook");
+
+                doSerialHook = SerialHook.has("doSerialHook") && SerialHook.get("doSerialHook").getAsBoolean();
+                if (doSerialHook) {
+                    if (SerialHook.has("dangerClasses")) {
+                        BlackClassSet.clear();
+                        for (JsonElement path : SerialHook.getAsJsonArray("dangerClasses")) {
+                            BlackClassSet.add(path.getAsString());
+                        }
+                        System.out.println("Danger SerialClasses loaded: " + BlackClassSet);
+                    }
+                    if (SerialHook.has("serialClassName") && !SerialHook.get("serialClassName").getAsString().isEmpty()) {
+                        serialHookClassName = SerialHook.get("serialClassName").getAsString();
+                        System.out.println("SerialHook class name set to: " + serialHookClassName);
+                    } else {
+                        System.out.println("No serialClassName specified in SerialHook configuration");
+                    }
+                }
+            } else {
+                System.out.println("No SerialHook configuration found in hook.json");
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error initializing SpELHook: " + e.getMessage());
+        }
+    }
+
+
 
 
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
 
-        if (className.equals("java/io/ObjectInputStream") || className.equals("org/apache/shiro/io/ClassResolvingObjectInputStream")) {
+        if (doSerialHook && (className.equals("java/io/ObjectInputStream") || className.equals(serialHookClassName))) {
             try {
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();
@@ -107,6 +150,33 @@ public class SerialHook implements ClassFileTransformer {
                         "checkName.invoke(hookClass.newInstance(), new Object[]{$1.getName()});"
                         ;
 
+                ctMethod.insertBefore(code);
+                System.out.println("Finish the SerialHook");
+                return clz.toBytecode();
+            } catch (Exception e) {
+                System.out.println(e);
+                throw new RuntimeException(e);
+            }
+        } else if (doSerialHook && className.equals("com/caucho/hessian/io/SerializerFactory")) {
+            try {
+                String loadName = className.replace("/", ".");
+                ClassPool pool = ClassPool.getDefault();
+                ClassClassPath classPath = new ClassClassPath(this.getClass());
+                pool.insertClassPath(classPath);
+
+                System.out.println("Into the SerialHook");
+                CtClass clz = pool.get(loadName);
+                CtMethod ctMethod = clz.getDeclaredMethod("getDeserializer", new CtClass[]{pool.get("java.lang.String")});
+
+                String code = "System.out.println(\"In the SerialHook \" + $1);" +
+                        "Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());"+
+                        "java.lang.reflect.Method  getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);"+
+                        "ClassLoader raspClassLoaderInstance = getRaspClassLoader.invoke(null, new Object[0]);"+
+
+                        "Class hookClass = Class.forName(\"com.rasp.hooks.SerialHook\",true, Thread.currentThread().getContextClassLoader());" +
+                        "java.lang.reflect.Method checkName = hookClass.getDeclaredMethod(\"checkName\", new Class []{String.class});" +
+                        "checkName.invoke(hookClass.newInstance(), new Object[]{$1});"
+                        ;
                 ctMethod.insertBefore(code);
                 System.out.println("Finish the SerialHook");
                 return clz.toBytecode();

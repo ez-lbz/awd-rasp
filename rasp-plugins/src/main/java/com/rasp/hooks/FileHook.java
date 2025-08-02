@@ -1,11 +1,17 @@
 package com.rasp.hooks;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javassist.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -33,12 +39,47 @@ public class FileHook implements ClassFileTransformer {
             "C:\\\\ProgramData\\\\Docker\\\\secrets\\\\"
     ));
 
+    private static boolean doFileHook = false;
 
+    static {
+        try {
+            String json = new String(Files.readAllBytes(Paths.get("hook.json")), StandardCharsets.UTF_8);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+
+            if (root.has("FileHook") && root.get("FileHook").isJsonObject()) {
+                JsonObject fileHook = root.getAsJsonObject("FileHook");
+
+                doFileHook = fileHook.has("doFileHook") && fileHook.get("doFileHook").getAsBoolean();
+                if (doFileHook) {
+                    if (fileHook.has("dangerPaths")) {
+                        dangerPathList.clear();
+                        for (JsonElement path : fileHook.getAsJsonArray("dangerPaths")) {
+                            dangerPathList.add(path.getAsString());
+                        }
+                        System.out.println("Danger paths loaded: " + dangerPathList);
+                    }
+
+                    if (fileHook.has("allowedExtensions")) {
+                        ALLOWED_FILE_EXTENSIONS.clear();
+                        for (JsonElement ext : fileHook.getAsJsonArray("allowedExtensions")) {
+                            ALLOWED_FILE_EXTENSIONS.add(ext.getAsString());
+                        }
+                        System.out.println("Allowed extensions loaded: " + ALLOWED_FILE_EXTENSIONS);
+                    }
+                }
+            } else {
+                System.out.println("No FileHook configuration found in hook.json");
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error initializing FileHook: " + e.getMessage());
+        }
+    }
 
 
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
-        if (className.equals("java/io/FileInputStream")) {
+        if (doFileHook && className.equals("java/io/FileInputStream")) {
             try {
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();
@@ -48,21 +89,18 @@ public class FileHook implements ClassFileTransformer {
                 System.out.println("Into the FileHook");
                 CtClass clz = pool.get(loadName);
 
-                //init(File file)插桩
                 CtBehavior[] ctBehaviors = clz.getDeclaredConstructors();
-                for(CtBehavior cb: ctBehaviors) {
+                for (CtBehavior cb : ctBehaviors) {
                     CtClass[] parameterTypes = cb.getParameterTypes();
                     if (parameterTypes != null && parameterTypes.length == 1 && parameterTypes[0].getName().equals("java.io.File")) {
-                        // 排除tzdb.dat，不然会影响log4j2的加载
-                        String code = "if (!($1.getPath().endsWith(\"tzdb.dat\"))){" +
-                                "System.out.println(\"In the FileHook \" + $1);" +
-                                "Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());"+
-                                "java.lang.reflect.Method  getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);"+
-                                "ClassLoader raspClassLoaderInstance = getRaspClassLoader.invoke(null, new Object[0]);"+
+                        String code = "System.out.println(\"In the FileHook \" + $1);" +
+                                "Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());" +
+                                "java.lang.reflect.Method  getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);" +
+                                "ClassLoader raspClassLoaderInstance = getRaspClassLoader.invoke(null, new Object[0]);" +
 
                                 "Class hookClass = Class.forName(\"com.rasp.hooks.FileHook\",true, raspClassLoaderInstance);" +
                                 "java.lang.reflect.Method checkFilePathMethod = hookClass.getDeclaredMethod(\"checkFilePath\", new Class []{(java.io.File).class});" +
-                                "checkFilePathMethod.invoke(hookClass.newInstance(), new Object[]{$1});}";
+                                "checkFilePathMethod.invoke(hookClass.newInstance(), new Object[]{$1});";
                         cb.insertBefore(code);
                     }
                 }
@@ -77,31 +115,24 @@ public class FileHook implements ClassFileTransformer {
     }
 
 
-    // 路径检测算法
     public static void checkFilePath(String filePath) throws Exception {
-        // 判断是否为空
-        if(filePath == null){
+        if (filePath == null) {
             return;
         }
-        // 判断是否存在目录穿越
         if (isPathTraversal(filePath)) {
             throw new SecurityException("PathTraversal is not allowed: " + filePath);
         }
-        // 是否为危险目录
-        if(isDangerPath(filePath)){
+        if (isDangerPath(filePath)) {
             throw new SecurityException("DangerPath is not allowed: " + filePath);
         }
-        // 是否为允许的文件后缀
 
     }
 
-    public static void checkFilePath(File file) throws Exception{
+    public static void checkFilePath(File file) throws Exception {
         String filePath = file.getPath();
         checkFilePath(filePath);
     }
 
-    // 参考JRASP检测算法
-    // 目录穿越检测
     public static boolean isPathTraversal(String filePath) {
         for (String item : travelPath) {
             if (filePath.contains(item)) {

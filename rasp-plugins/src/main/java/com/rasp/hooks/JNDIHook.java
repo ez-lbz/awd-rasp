@@ -1,23 +1,44 @@
 package com.rasp.hooks;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.ProtectionDomain;
 
 public class JNDIHook implements ClassFileTransformer {
     // 协议黑名单
     private static String[] dangerProtocol = new String[]{"ldap://", "rmi://", "ldaps://"};
+    private static boolean doJNDIHook = false;
 
+    static {
+        try {
+            String json = new String(Files.readAllBytes(Paths.get("hook.json")), StandardCharsets.UTF_8);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            if (root.has("JNDIHook") && root.get("JNDIHook").isJsonObject()) {
+                JsonObject jndiHook = root.getAsJsonObject("JNDIHook");
+                doJNDIHook = jndiHook.has("doJNDIHook") && jndiHook.get("doJNDIHook").getAsBoolean();
+            } else {
+                System.out.println("No JNDIHook configuration found in hook.json");
+            }
+        } catch (Exception e) {
+            System.out.println("Error initializing JNDIHook: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
 
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
 
-        if (className.equals("javax/naming/InitialContext")) {
+        if (doJNDIHook && className.equals("javax/naming/InitialContext")) {
             try {
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();
@@ -26,7 +47,6 @@ public class JNDIHook implements ClassFileTransformer {
 
                 System.out.println("Into the JNDIHook");
                 CtClass clz = pool.get(loadName);
-                // Hook住lookup，详情参考JNDI的调用流程
                 CtMethod ctMethod = clz.getDeclaredMethod("lookup");
 
                 String code = "System.out.println(\"In the JNDIHook \" + $1);" +

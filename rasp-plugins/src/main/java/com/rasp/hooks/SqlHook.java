@@ -1,19 +1,42 @@
 package com.rasp.hooks;
 
 import com.alibaba.druid.wall.WallFilter;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javassist.*;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.ProtectionDomain;
 import com.alibaba.druid.wall.WallUtils;
 
 public class SqlHook implements ClassFileTransformer {
+    private static boolean doSqlHook = false;
+
+    static {
+        try {
+            String json = new String(Files.readAllBytes(Paths.get("hook.json")), StandardCharsets.UTF_8);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            if (root.has("SqlHook") && root.get("SqlHook").isJsonObject()) {
+                JsonObject sqlHook = root.getAsJsonObject("SqlHook");
+                doSqlHook = sqlHook.has("doSqlHook") && sqlHook.get("doSqlHook").getAsBoolean();
+            } else {
+                System.out.println("No SqlHook configuration found in hook.json");
+            }
+        } catch (Exception e) {
+            System.out.println("Error initializing SqlHook: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
         // mysql 5.x
-        if (className.equals("com/mysql/jdbc/StatementImpl")) {
+        if (doSqlHook && className.equals("com/mysql/jdbc/StatementImpl")) {
             try {
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();

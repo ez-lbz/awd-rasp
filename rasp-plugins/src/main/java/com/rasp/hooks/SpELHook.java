@@ -1,14 +1,23 @@
 package com.rasp.hooks;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javassist.*;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.ProtectionDomain;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 public class SpELHook implements ClassFileTransformer {
     // 黑名单
-    private static String[] spelBlackList = {
+    private static Set<String> spelBlackList = new HashSet<>(Arrays.asList(
             "java.lang.Runtime",
             "java.lang.ProcessBuilder",
             "javax.script.ScriptEngineManager",
@@ -22,12 +31,42 @@ public class SpELHook implements ClassFileTransformer {
             "java.io.File",
             "javax.management.remote.rmi.RMIConnector",
             "java.io.FileInputStream"
-    };
+    ));
+
+    private static boolean doSpELHook = false;
+
+    static {
+        try {
+            String json = new String(Files.readAllBytes(Paths.get("hook.json")), StandardCharsets.UTF_8);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+
+            if (root.has("SpELHook") && root.get("SpELHook").isJsonObject()) {
+                JsonObject SpELHook = root.getAsJsonObject("SpELHook");
+
+                doSpELHook = SpELHook.has("doSpELHook") && SpELHook.get("doSpELHook").getAsBoolean();
+                if (doSpELHook) {
+                    if (SpELHook.has("dangerSpELs")) {
+                        spelBlackList.clear();
+                        for (JsonElement path : SpELHook.getAsJsonArray("dangerSpELs")) {
+                            spelBlackList.add(path.getAsString());
+                        }
+                        System.out.println("Danger SpELs loaded: " + spelBlackList);
+                    }
+                }
+            } else {
+                System.out.println("No SpELHook configuration found in hook.json");
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error initializing SpELHook: " + e.getMessage());
+        }
+    }
+
 
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
-        if (className.equals("org/springframework/expression/common/TemplateAwareExpressionParser")) {
+        if (doSpELHook && className.equals("org/springframework/expression/common/TemplateAwareExpressionParser")) {
             try {
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();

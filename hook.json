@@ -1,0 +1,116 @@
+{
+  "FileHook": {
+    "doFileHook": true,
+    "dangerPaths": [
+      "/etc/passwd",
+      "/root/",
+      "C:\\Users\\86138\\Desktop\\coverage.json"
+    ],
+    "allowedExtensions": [
+      "css",
+      "jpg",
+      "png",
+      "jpeg"
+    ]
+  },
+  "JNDIHook": {
+    "doJNDIHook": true
+  },
+  "RCEHook": {
+    "doRCEHook": true,
+    "safeCommands": [
+      "ping 127.0.0.1"
+    ]
+  },
+  "SerialHook": {
+    "doSerialHook": true,
+    "serialClassName": "org/apache/shiro/io/ClassResolvingObjectInputStream",
+    "dangerClasses": [
+      "org.springframework.transaction.support.AbstractPlatformTransactionManager",
+      "java.rmi.server.UnicastRemoteObject",
+      "java.rmi.server.RemoteObjectInvocationHandler",
+      "com.bea.core.repackaged.springframework.transaction.support.AbstractPlatformTransactionManager",
+      "java.rmi.server.RemoteObject",
+      "com.tangosol.coherence.rest.util.extractor.MvelExtractor",
+      "java.lang.Runtime",
+      "oracle.eclipselink.coherence.integrated.internal.cache.LockVersionExtractor",
+      "org.eclipse.persistence.internal.descriptors.MethodAttributeAccessor",
+      "org.eclipse.persistence.internal.descriptors.InstanceVariableAttributeAccessor",
+      "org.apache.commons.fileupload.disk.DiskFileItem",
+      "oracle.jdbc.pool.OraclePooledConnection",
+      "com.tangosol.util.extractor.ReflectionExtractor",
+      "com.tangosol.internal.util.SimpleBinaryEntry",
+      "com.tangosol.coherence.component.util.daemon.queueProcessor.service.grid.partitionedService.PartitionedCache$Storage$BinaryEntry",
+      "com.sun.rowset.JdbcRowSetImpl",
+      "org.eclipse.persistence.internal.indirection.ProxyIndirectionHandler",
+      "bsh.XThis",
+      "bsh.Interpreter",
+      "com.mchange.v2.c3p0.PoolBackedDataSource",
+      "com.mchange.v2.c3p0.impl.PoolBackedDataSourceBase",
+      "org.apache.commons.beanutils.BeanComparator",
+      "java.lang.reflect.Proxy",
+      "clojure.lang.PersistentArrayMap",
+      "org.apache.commons.io.output.DeferredFileOutputStream",
+      "org.apache.commons.io.output.ThresholdingOutputStream",
+      "org.apache.wicket.util.upload.DiskFileItem",
+      "org.apache.wicket.util.io.DeferredFileOutputStream",
+      "org.apache.wicket.util.io.ThresholdingOutputStream",
+      "com.sun.org.apache.bcel.internal.util.ClassLoader",
+      "com.sun.syndication.feed.impl.ObjectBean",
+      "org.springframework.beans.factory.ObjectFactory",
+      "org.springframework.aop.framework.AdvisedSupport",
+      "org.springframework.aop.target.SingletonTargetSource",
+      "com.vaadin.data.util.NestedMethodProperty",
+      "com.vaadin.data.util.PropertysetItem",
+      "javax.management.BadAttributeValueExpException",
+      "org.apache.myfaces.context.servlet.FacesContextImpl",
+      "org.apache.myfaces.context.servlet.FacesContextImplBase",
+      "org.apache.commons.collections.functors.InvokerTransformer",
+      "org.apache.commons.collections.functors.InstantiateTransformer",
+      "org.apache.commons.collections4.functors.InvokerTransformer",
+      "org.apache.commons.collections4.functors.InstantiateTransformer",
+      "java.lang.ProcessBuilder",
+      "com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl",
+      "java.security.SignedObject",
+      "com.sun.jndi.ldap.LdapAttribute",
+      "javax.naming.InitialContext",
+      "org.springframework.aop.framework.JdkDynamicAopProxy",
+      "org.springframework.aop.aspectj",
+      "org.apache.xbean.naming.context",
+      "JSONArray",
+      "POJONode",
+      "ToStringBean",
+      "EqualsBean",
+      "ProxyLazyValue",
+      "SwingLazyValue",
+      "UIDefaults",
+      "XString",
+      "org.springframework.cache.interceptor.BeanFactoryCacheOperationSourceAdvisor",
+      "org.springframework.aop.aspectj.AspectInstanceFactory",
+      "org.slf4j",
+      "groovy",
+      "sun.print.UnixPrintService"
+    ]
+  },
+  "SpELHook": {
+    "doSpELHook": true,
+    "dangerSpELs": [
+      "java.lang.Runtime",
+      "java.lang.ProcessBuilder",
+      "javax.script.ScriptEngineManager",
+      "java.net.URLClassLoader",
+      "java.lang.ClassLoader",
+      "org.springframework.expression.Expression",
+      "org.thymeleaf.context.AbstractEngineContext",
+      "com.sun.org.apache.bcel.internal.util.JavaWrapper",
+      "java.lang.System",
+      "org.springframework.cglib.core.ReflectUtils",
+      "java.io.File",
+      "javax.management.remote.rmi.RMIConnector",
+      "java.io.FileInputStream"
+    ]
+  },
+  "SqlHook": {
+    "doSqlHook": true
+  }
+}
