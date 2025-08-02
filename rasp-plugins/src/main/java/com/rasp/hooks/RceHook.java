@@ -37,7 +37,7 @@ public class RceHook implements ClassFileTransformer {
                         for (JsonElement path : RCEHook.getAsJsonArray("safeCommands")) {
                             ALLOWED_COMMANDS.add(path.getAsString());
                         }
-                        System.out.println("Danger Cmds loaded: " + ALLOWED_COMMANDS);
+                        System.out.println("Safe Cmds loaded: " + ALLOWED_COMMANDS);
                     }
                 }
             } else {
