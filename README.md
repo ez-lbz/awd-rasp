@@ -39,6 +39,10 @@ Traditional WAFs are not invasive and typically sit outside the application, whi
 ## Usage
 
 - The project is developed and tested primarily on **Java 8**, but it also supports higher Java runtime environments.
+- Make sure to place the following files in the same directory:
+    - `rasp-main.jar`
+    - `rasp-plugins.jar`
+    - `hook.json`
 - To run the protected application, use the following startup command:
 
 ```bash
