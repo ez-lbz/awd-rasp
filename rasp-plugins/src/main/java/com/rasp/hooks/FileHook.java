@@ -18,11 +18,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class FileHook implements ClassFileTransformer {
-    // 允许读取的文件格式
     private static final Set<String> ALLOWED_FILE_EXTENSIONS = new HashSet<>(Arrays.asList("css", "jpg"));
-    // 目录穿越黑名单
     private static String[] travelPath = new String[]{"../", "..\\", ".."};
-    // 危险目录黑名单
     private static Set<String> dangerPathList = new HashSet<String>(Arrays.asList(
             "/etc/passwd",
             "/etc/shadow",

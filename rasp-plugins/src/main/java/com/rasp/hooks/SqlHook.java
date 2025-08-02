@@ -35,7 +35,6 @@ public class SqlHook implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
-        // mysql 5.x
         if (doSqlHook && className.equals("com/mysql/jdbc/StatementImpl")) {
             try {
                 String loadName = className.replace("/", ".");

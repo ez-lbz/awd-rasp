@@ -14,7 +14,6 @@ import java.nio.file.Paths;
 import java.security.ProtectionDomain;
 
 public class JNDIHook implements ClassFileTransformer {
-    // 协议黑名单
     private static String[] dangerProtocol = new String[]{"ldap://", "rmi://", "ldaps://"};
     private static boolean doJNDIHook = false;
 

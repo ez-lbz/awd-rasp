@@ -16,7 +16,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class SpELHook implements ClassFileTransformer {
-    // 黑名单
     private static Set<String> spelBlackList = new HashSet<>(Arrays.asList(
             "java.lang.Runtime",
             "java.lang.ProcessBuilder",
@@ -72,12 +71,10 @@ public class SpELHook implements ClassFileTransformer {
                 ClassPool pool = ClassPool.getDefault();
                 ClassClassPath classPath = new ClassClassPath(this.getClass());
                 pool.insertClassPath(classPath);
-                // 暂时用来解决源码运行可以，但打包后的SpringBoot类无法Hook的问题
                 pool.appendClassPath(new LoaderClassPath(Thread.currentThread().getContextClassLoader()));
 
                 System.out.println("Into the SpELHook");
                 CtClass clz = pool.get(loadName);
-                // Hook住parseExpression
                 CtMethod ctMethod = clz.getDeclaredMethod("parseExpression");
 
                 String code = "System.out.println(\"In the SpELHook \" + $1);" +
