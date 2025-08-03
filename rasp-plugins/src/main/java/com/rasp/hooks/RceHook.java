@@ -77,11 +77,11 @@ public class RceHook implements ClassFileTransformer {
                         + "System.out.println(\"In the RCEHook \" + java.util.Arrays.toString($1) + Thread.currentThread().getContextClassLoader());"
                         + "String cmd = String.join(\" \", $1);"
                         + "Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());"
-                        + "java.lang.reflect.Method getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);" // 这里改动
-                        + "ClassLoader raspClassLoaderInstance = (ClassLoader) getRaspClassLoader.invoke(null, new Object[0]);" // 这里改动
+                        + "java.lang.reflect.Method getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);"
+                        + "ClassLoader raspClassLoaderInstance = (ClassLoader) getRaspClassLoader.invoke(null, new Object[0]);"
                         + "Class hookClass = Class.forName(\"com.rasp.hooks.RceHook\", true, raspClassLoaderInstance);"
-                        + "java.lang.reflect.Method checkCmd = hookClass.getDeclaredMethod(\"checkCmd\", new Class[]{String.class});" // 这里改动
-                        + "checkCmd.invoke(hookClass.newInstance(), new Object[]{cmd});" // 这里改动
+                        + "java.lang.reflect.Method checkCmd = hookClass.getDeclaredMethod(\"checkCmd\", new Class[]{String.class});"
+                        + "checkCmd.invoke(hookClass.newInstance(), new Object[]{cmd});"
                         + "}";
 
                 startMethod.insertBefore(code);
