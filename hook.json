@@ -5,12 +5,6 @@
       "/etc/passwd",
       "/root/",
       "C:\\Users\\86138\\Desktop\\coverage.json"
-    ],
-    "allowedExtensions": [
-      "css",
-      "jpg",
-      "png",
-      "jpeg"
     ]
   },
   "JNDIHook": {

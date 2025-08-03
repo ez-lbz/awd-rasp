@@ -18,7 +18,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class FileHook implements ClassFileTransformer {
-    private static final Set<String> ALLOWED_FILE_EXTENSIONS = new HashSet<>(Arrays.asList("css", "jpg"));
     private static String[] travelPath = new String[]{"../", "..\\", ".."};
     private static Set<String> dangerPathList = new HashSet<String>(Arrays.asList(
             "/etc/passwd",
@@ -54,14 +53,6 @@ public class FileHook implements ClassFileTransformer {
                             dangerPathList.add(path.getAsString());
                         }
                         System.out.println("Danger paths loaded: " + dangerPathList);
-                    }
-
-                    if (fileHook.has("allowedExtensions")) {
-                        ALLOWED_FILE_EXTENSIONS.clear();
-                        for (JsonElement ext : fileHook.getAsJsonArray("allowedExtensions")) {
-                            ALLOWED_FILE_EXTENSIONS.add(ext.getAsString());
-                        }
-                        System.out.println("Allowed extensions loaded: " + ALLOWED_FILE_EXTENSIONS);
                     }
                 }
             } else {
