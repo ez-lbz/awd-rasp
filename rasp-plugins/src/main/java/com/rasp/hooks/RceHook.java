@@ -3,10 +3,7 @@ package com.rasp.hooks;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import javassist.ClassClassPath;
-import javassist.ClassPool;
-import javassist.CtBehavior;
-import javassist.CtClass;
+import javassist.*;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
@@ -21,6 +18,7 @@ public class RceHook implements ClassFileTransformer {
             "ping 127.0.0.1"
     ));
     private static boolean doRCEHook = false;
+
 
     static {
         try {
@@ -53,8 +51,51 @@ public class RceHook implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className,
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
-        if (doRCEHook && className.endsWith("ProcessImpl")||className.endsWith("UnixProcess")) {
+        if (doRCEHook && className.endsWith("ProcessImpl")) {
             try {
+                System.out.println("RCEHook is enabled for class: " + className);
+                String loadName = className.replace("/", ".");
+                ClassPool pool = ClassPool.getDefault();
+                ClassClassPath classPath = new ClassClassPath(this.getClass());
+                pool.insertClassPath(classPath);
+
+                System.out.println("Into the RCEHook");
+                CtClass clz = pool.get(loadName);
+
+                CtMethod startMethod = clz.getDeclaredMethod("start",
+                        new CtClass[]{
+                                pool.get("java.lang.String[]"),
+                                pool.get("java.util.Map"),
+                                pool.get("java.lang.String"),
+                                pool.get("[L" + ProcessBuilder.Redirect.class.getName().replace('.', '/') + ";"),
+                                CtClass.booleanType
+                        }
+                );
+
+                String code = ""
+                        + "{"
+                        + "System.out.println(\"In the RCEHook \" + java.util.Arrays.toString($1) + Thread.currentThread().getContextClassLoader());"
+                        + "String cmd = String.join(\" \", $1);"
+                        + "Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());"
+                        + "java.lang.reflect.Method getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);" // 这里改动
+                        + "ClassLoader raspClassLoaderInstance = (ClassLoader) getRaspClassLoader.invoke(null, new Object[0]);" // 这里改动
+                        + "Class hookClass = Class.forName(\"com.rasp.hooks.RceHook\", true, raspClassLoaderInstance);"
+                        + "java.lang.reflect.Method checkCmd = hookClass.getDeclaredMethod(\"checkCmd\", new Class[]{String.class});" // 这里改动
+                        + "checkCmd.invoke(hookClass.newInstance(), new Object[]{cmd});" // 这里改动
+                        + "}";
+
+                startMethod.insertBefore(code);
+
+                System.out.println("Finish the RceHook");
+                return clz.toBytecode();
+            } catch (Exception e) {
+                System.out.println(e);
+                throw new RuntimeException(e);
+            }
+        }
+        if (doRCEHook && className.endsWith("UnixProcess")) {
+            try {
+                System.out.println("RCEHook is enabled for class: " + className);
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();
                 ClassClassPath classPath = new ClassClassPath(this.getClass());
@@ -63,16 +104,30 @@ public class RceHook implements ClassFileTransformer {
                 System.out.println("Into the RCEHook");
                 CtClass clz = pool.get(loadName);
                 CtBehavior[] ctBehaviors = clz.getDeclaredConstructors();
-                for(CtBehavior cb: ctBehaviors) {
-                    String code = "System.out.println(\"In the RCEHook \" + $1 + Thread.currentThread().getContextClassLoader());" +
-                            "String _ = String.join(\" \", $1);" +
-                            "Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());"+
-                            "java.lang.reflect.Method  getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);"+
-                            "ClassLoader raspClassLoaderInstance = getRaspClassLoader.invoke(null, new Object[0]);"+
+                for (CtBehavior cb : ctBehaviors) {
+                    CtClass[] params = cb.getParameterTypes();
+                    if (params.length == 0) {
+                        System.out.println("  -> No parameters");
+                    } else {
+                        for (int i = 0; i < params.length; i++) {
+                            System.out.println("  -> Param " + i + ": " + params[i].getName());
+                        }
+                    }
 
-                            "Class hookClass = Class.forName(\"com.rasp.hooks.RceHook\",true, raspClassLoaderInstance);"+
-                            "java.lang.reflect.Method checkCmd = hookClass.getDeclaredMethod(\"checkCmd\", new Class []{String.class});" +
-                            "checkCmd.invoke(hookClass.newInstance(), new Object[]{_});";
+                    String code = "{"
+                            + "  java.util.List<String> decode = new java.util.ArrayList<>();"
+                            + "  decode.addAll(java.util.Arrays.asList(new String($1).split(\"\\u0000\")));"
+                            + "  decode.addAll(java.util.Arrays.asList(new String($2).split(\"\\u0000\")));"
+                            + "  String cmd = String.join(\" \", decode).trim();"
+                            + "  System.out.println(\"In the RCEHook command: \" + cmd + Thread.currentThread().getContextClassLoader());"
+                            + "  Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());"
+                            + "  java.lang.reflect.Method getRaspClassLoader = raspClassLoaderClass.getMethod(\"getRaspClassLoader\", new Class[0]);"  // 改动
+                            + "  ClassLoader raspClassLoaderInstance = (ClassLoader) getRaspClassLoader.invoke(null, new Object[0]);"  // 改动
+                            + "  Class hookClass = Class.forName(\"com.rasp.hooks.RceHook\", true, raspClassLoaderInstance);"
+                            + "  java.lang.reflect.Method checkCmd = hookClass.getDeclaredMethod(\"checkCmd\", new Class[]{String.class});"  // 改动
+                            + "  checkCmd.invoke(hookClass.newInstance(), new Object[]{cmd});"  // 改动
+                            + "}";
+
                     cb.insertBefore(code);
                 }
 
@@ -82,15 +137,23 @@ public class RceHook implements ClassFileTransformer {
                 System.out.println(e);
                 throw new RuntimeException(e);
             }
-        } else {
-            return classfileBuffer;
         }
+        return classfileBuffer;
     }
 
     public static void checkCmd(String cmd) throws Exception {
-        if (!ALLOWED_COMMANDS.contains(cmd)){
+        boolean allowed = false;
+        for (String allow : ALLOWED_COMMANDS) {
+            if (cmd.contains(allow)) {
+                allowed = true;
+                break;
+            }
+        }
+        if (!allowed) {
+            System.out.println("RCE Attack Detected: " + cmd);
             throw new RuntimeException("RCE Attack -- RASP");
         }
     }
+
 
 }
