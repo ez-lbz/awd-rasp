@@ -37,7 +37,7 @@ public class JNDIHook implements ClassFileTransformer {
                             Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
                             byte[] classfileBuffer) throws IllegalClassFormatException {
 
-        if (doJNDIHook && className.equals("javax/naming/InitialContext")) {
+        if (doJNDIHook && className.equals("com/sun/jndi/toolkit/url/GenericURLContext")) {
             try {
                 String loadName = className.replace("/", ".");
                 ClassPool pool = ClassPool.getDefault();
@@ -46,7 +46,7 @@ public class JNDIHook implements ClassFileTransformer {
 
                 System.out.println("Into the JNDIHook");
                 CtClass clz = pool.get(loadName);
-                CtMethod ctMethod = clz.getDeclaredMethod("lookup");
+                CtMethod ctMethod = clz.getDeclaredMethod("lookup", new CtClass[]{clz.getClassPool().get("java.lang.String")});
 
                 String code = "System.out.println(\"In the JNDIHook \" + $1);" +
                         "Class raspClassLoaderClass = Class.forName(\"com.rasp.myLoader.RaspClassLoader\", true, Thread.currentThread().getContextClassLoader());"+

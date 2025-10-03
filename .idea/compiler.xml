@@ -10,5 +10,8 @@
         <module name="rasp-plugins" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="rasp-attach" target="1.8" />
+    </bytecodeTargetLevel>
   </component>
 </project>
